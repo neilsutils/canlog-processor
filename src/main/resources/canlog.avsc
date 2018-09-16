@@ -1,0 +1,6 @@
+{
+  "type" : "record",
+  "name" : "test_table",
+  "namespace" : "ERM_INTERNAL_EKP",
+  "fields" : []
+}

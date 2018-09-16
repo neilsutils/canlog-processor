@@ -1,0 +1,165 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>canlog-processor</groupId>
+  <artifactId>canlog-processor</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  
+  	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  		<maven.compiler.source>1.8</maven.compiler.source>
+    	<maven.compiler.target>1.8</maven.compiler.target>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>3.8.1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+			<version>1.11</version>
+		</dependency>
+		<dependency>
+			<groupId>joda-time</groupId>
+			<artifactId>joda-time</artifactId>
+			<version>2.9.9</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>1.5</version>
+		</dependency>
+
+		<dependency>
+			<groupId>net.sourceforge.argparse4j</groupId>
+			<artifactId>argparse4j</artifactId>
+			<version>0.8.1</version>
+		</dependency>
+
+		<dependency>
+		    <groupId>org.apache.commons</groupId>
+		    <artifactId>commons-lang3</artifactId>
+		    <version>3.7</version>
+		</dependency>
+
+	    <dependency>
+	      <groupId>org.apache.parquet</groupId>
+	      <artifactId>parquet-common</artifactId>
+	      <version>1.10.0</version>
+	    </dependency>
+	    <dependency>
+	      <groupId>org.apache.parquet</groupId>
+	      <artifactId>parquet-encoding</artifactId>
+	      <version>1.10.0</version>
+	    </dependency>
+	    <dependency>
+	      <groupId>org.apache.parquet</groupId>
+	      <artifactId>parquet-column</artifactId>
+	      <version>1.10.0</version>
+	    </dependency>
+	    <dependency>
+	      <groupId>org.apache.parquet</groupId>
+	      <artifactId>parquet-hadoop</artifactId>
+	      <version>1.10.0</version>
+	    </dependency>	
+	    <dependency>
+		    <groupId>org.apache.parquet</groupId>
+		    <artifactId>parquet-avro</artifactId>
+		    <version>1.10.0</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.apache.hadoop</groupId>
+		    <artifactId>hadoop-core</artifactId>
+		    <version>1.2.1</version>
+		</dependency>
+				<dependency>
+			<groupId>com.microsoft.azure</groupId>
+			<artifactId>azure-storage</artifactId>
+			<version>7.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.microsoft.azure</groupId>
+			<artifactId>azure-keyvault-extensions</artifactId>
+			<version>1.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.microsoft.rest</groupId>
+			<artifactId>client-runtime</artifactId>
+			<version>1.2.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.microsoft.aad</groupId>
+			<artifactId>adal4j</artifactId>
+			<version>0.0.2</version>
+	</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>2.4</version>
+				<configuration>
+					<archive>
+						<manifest>
+							<addClasspath>true</addClasspath>
+							<classpathPrefix>lib/</classpathPrefix>
+							<mainClass>com.microsoft.j1939.Analyzer.App</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.3</version>
+				<configuration>
+					<descriptors>
+						<descriptor>src/main/assembly/zip-application.xml</descriptor>
+					</descriptors>
+					<attach>true</attach>
+				</configuration>
+				<executions>
+					<execution>
+						<id>create-zip</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			
+			<plugin>
+				<!-- Usage: mvn org.jvnet.jaxb2.maven2:maven-jaxb2-plugin:generate -->
+				<groupId>org.jvnet.jaxb2.maven2</groupId>
+				<artifactId>maven-jaxb2-plugin</artifactId>
+				<version>0.12.3</version>
+				<configuration>
+					<schemaDirectory>src/main/resources</schemaDirectory>
+					<schemaIncludes>
+						<include>Definition.xsd</include>
+					</schemaIncludes>
+					<bindingDirectory>src/main/resources/</bindingDirectory>
+					<bindingIncludes>
+						<include>*.xjb</include>
+					</bindingIncludes>
+					<generateDirectory>target/generated-sources/xjc</generateDirectory>
+					<generatePackage>com.microsoft.j1939.Analyzer.Schema</generatePackage>
+					<writeCode>true</writeCode>
+					<readOnly>false</readOnly>
+					<removeOldOutput>true</removeOldOutput>
+				</configuration>
+			</plugin>
+
+		</plugins>
+	</build>
+  
+</project>
