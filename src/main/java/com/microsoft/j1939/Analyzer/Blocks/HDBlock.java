@@ -1,7 +1,5 @@
 package com.microsoft.j1939.Analyzer.Blocks;
 
-package com.microsoft.j1939.Analyzer.Blocks;
-
 import static com.microsoft.j1939.Analyzer.Util.OutputUtil.writeLine;
 
 import java.io.IOException;
