@@ -9,6 +9,7 @@ import net.sourceforge.argparse4j.inf.Namespace;
 public interface OutputBuilder extends Closeable {
 
 	void open(Namespace ns, List<String> headers) throws IOException;
+	void open(String uri, List<String> headers) throws IOException;
 	void write(List<String> record) throws IOException;
 	
 }

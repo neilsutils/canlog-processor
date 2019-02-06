@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document xmlns="http://maven.apache.org/XDOC/2.0">
+
+	<properties>
+		<title>Introduction</title>
+	</properties>
+
+	<body>
+		<section name="Description">
+		
+		Introduction to Bongo 
+		</section>
+		<p>
+	Bongo Tool is a command application to manipulate and interrogate an Bongo Repository.  An Bongo
+	Repository is a Cassandra, Hbase Instance or MapDB File(s). The Bongo tool can be used to maintain such a repository.  The
+	operations supported by tools can be used in tandum with the Bongo Navigator and Bongo Manager.
+		</p>
+ 		<section name="Description">
+		
+		Introduction to Bongo Operations
+		</section>
+ 		<p>
+    Bongo Tool can be used load/extract and examine the contents of one or more stores.  In addition,
+    Bongo Tool maintains data within the store that is used to indicate that a store has been exported, indexed 
+    and when the store was created.  These values can be view in 'Bongo Console', 'Bongo Manager' and 
+    'Bongo Explorer'.  
+    
+    Essentially, 'Bongo Command' can import and export files of any size, whilst 'Bongo Manger' is designed for files 
+    the import and export of files less than 100G in size.  Note that this restriction does not apply
+    to 'Bongo Navigator'.
+ 	</p>
+ 			<section name="HBase Commands">
+			<p>
+				HBase specific data sources. This is useful in  determining the HBase structure.
+				<br />
+				<table>
+					<thead>
+						<tr>
+							<th>Command</th>
+							<th>Description</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>
+								<b>Drop All</b>
+							</td>
+							<td>list.each {|t| disable t;drop t}</td>
+						</tr>
+						<tr>
+							<td>
+								<b>Scan Command</b>
+							</td>
+							<td>
+								scan <i>'table-name'</i> , {RAW => true, VERSIONS => 10}
+							</td>
+						</tr>
+					</tbody>
+
+				</table>
+			</p>
+		</section>
+ 	
+</body>
+</document>
+ 
+ 

@@ -22,7 +22,7 @@ import net.sourceforge.argparse4j.inf.Namespace;
 public class ParquetFileBuilder implements OutputBuilder {
 	ParquetWriter<GenericData.Record> writer;
 	Schema parsedSchema;
-	 List<String> headers;
+	List<String> headers;
 	
 	public ParquetFileBuilder() throws IOException {
 	}
@@ -33,45 +33,29 @@ public class ParquetFileBuilder implements OutputBuilder {
 		writer.close();
 	
 	}
-
+	
 	@Override
 	public void open(Namespace ns, List<String> headers) throws IOException {	
 		
+		open(ns.getString("output"), headers);
+		
+    }
+	
+	@Override
+	public void open(String pathName, List<String> headers) throws IOException {	
+		
 		this.headers = headers;
 		
-	    Path path = FileSystems.getDefault().getPath(ns.getString("output"));
+	    Path path = FileSystems.getDefault().getPath(pathName);
 	    Files.deleteIfExists(path);
 	
 		FieldAssembler<Schema> builder = SchemaBuilder.record("log").namespace("org.apache.avro.ipc").fields();
+
 		for (String header : headers) {
 			builder = builder.name(header).type().nullable().stringType().noDefault();
 		}
 		
 		parsedSchema = builder.endRecord();
-		
-	//	parsedSchema = new Schema.Parser().parse(IOUtils.toString(inStream, "UTF-8"));
-		//	InputStream inStream = ParquetBuilder.class.getClass().getResourceAsStream("/canlog.avsc");
-	
-			/*
-		writer = AvroParquetWriter
-	                .<GenericData.Record>builder(nioPathToOutputFile(path))
-	                .withSchema(parsedSchema)
-	                .withConf(new Configuration())
-	                .withCompressionCodec(CompressionCodecName.SNAPPY)
-	                .build();
-	                */		
-		/*
-		writer = AvroParquetWriter
-	            .<GenericData.Record>builder(nioPathToOutputFile(path))
-	            .withRowGroupSize(256 * 1024 * 1024)
-	            .withPageSize(128 * 1024)
-	            .withSchema(parsedSchema)
-	            .withConf(new Configuration())
- 	            .withCompressionCodec(CompressionCodecName.SNAPPY)
-	            .withValidation(false)
-	            .withDictionaryEncoding(false)
-	            .build();
-	            */		
 		
 		writer = AvroParquetWriter
 	    	            .<GenericData.Record>builder(getOutputFile(path))

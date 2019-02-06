@@ -20,8 +20,8 @@ import net.sourceforge.argparse4j.inf.Namespace;
 
 public class ParquetBlobBuilder implements OutputBuilder {
 	ParquetWriter<GenericData.Record> writer;
-	Schema parsedSchema;
-	 List<String> headers;
+	Schema parsedSchema = null;
+	List<String> headers;
 	
 	public ParquetBlobBuilder() throws IOException {
 	}
@@ -32,38 +32,31 @@ public class ParquetBlobBuilder implements OutputBuilder {
 		writer.close();
 	
 	}
+	
+	@Override
+	public void open(Namespace ns, List<String> headers) throws IOException {
+		open(ns.getString("output"), headers);
+	}
 
 	@Override
-	public void open(Namespace ns, List<String> headers) throws IOException {	
+	public void open(String uri, List<String> headers) throws IOException {	
 		
 		this.headers = headers;
 		
-	    FieldAssembler<Schema> builder = SchemaBuilder.record("log").namespace("org.apache.avro.ipc").fields();
-		for (String header : headers) {
-			builder = builder.name(header).type().nullable().stringType().noDefault();
+		if (parsedSchema == null) {
+			
+		    FieldAssembler<Schema> builder = SchemaBuilder.record("log").namespace("org.apache.avro.ipc").fields();
+			for (String header : headers) {
+				builder = builder.name(header).type().nullable().stringType().noDefault();
+			}
+			
+			parsedSchema = builder.endRecord();
+			
 		}
-		
-		parsedSchema = builder.endRecord();
-		
-	//	parsedSchema = new Schema.Parser().parse(IOUtils.toString(inStream, "UTF-8"));
-		//	InputStream inStream = ParquetBuilder.class.getClass().getResourceAsStream("/canlog.avsc");
-	
-				/*
-		writer = AvroParquetWriter
-	            .<GenericData.Record>builder(nioPathToOutputFile(path))
-	            .withRowGroupSize(256 * 1024 * 1024)
-	            .withPageSize(128 * 1024)
-	            .withSchema(parsedSchema)
-	            .withConf(new Configuration())
- 	            .withCompressionCodec(CompressionCodecName.SNAPPY)
-	            .withValidation(false)
-	            .withDictionaryEncoding(false)
-	            .build();
-	            */		
-		
+				
 		try {
 			writer = AvroParquetWriter
-				            .<GenericData.Record>builder(getOutputFile(new URI(ns.getString("output"))))
+				            .<GenericData.Record>builder(getOutputFile(new URI(uri)))
 				            .withRowGroupSize(Integer.parseInt(System.getProperty("ROW-GROUP-SIZE", "1048576")))
 				            .withPageSize(Integer.parseInt(System.getProperty("PAGE-SIZE", "1048576")))
 				            .withSchema(parsedSchema)

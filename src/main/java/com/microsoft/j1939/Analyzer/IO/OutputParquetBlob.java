@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLStreamHandler;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -58,15 +56,6 @@ public final class OutputParquetBlob {
 	private static PositionOutputStream makePositionOutputStream(URI uri, int ioBufSize, boolean trunc)
 			throws IOException {
 		try {
-			URL.setURLStreamHandlerFactory(protocol -> "wasb".equals(protocol) ? new URLStreamHandler() {
-			    protected URLConnection openConnection(URL url) throws IOException {
-			        return new URLConnection(url) {
-			            public void connect() throws IOException {
-			                throw new IOException("Not Supported");
-			            }
-			        };
-			    }
-			} : null);
 			
 			URL url = uri.toURL();
 			

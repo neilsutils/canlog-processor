@@ -329,7 +329,7 @@ public class MDFReader {
 		writeLine(outputStream, "***");
 
 	}
-	
+
 	private String getName(long id) {
 		for (Bus bus : network.getBus()) {
 

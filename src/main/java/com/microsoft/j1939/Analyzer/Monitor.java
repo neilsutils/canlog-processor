@@ -7,9 +7,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigInteger;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
+import java.security.InvalidKeyException;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.HashMap;
@@ -19,9 +21,20 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.joda.time.DateTime;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
+import com.microsoft.azure.storage.CloudStorageAccount;
+import com.microsoft.azure.storage.StorageException;
+import com.microsoft.azure.storage.blob.CloudBlobClient;
+import com.microsoft.azure.storage.blob.CloudBlobContainer;
+import com.microsoft.azure.storage.blob.CloudBlockBlob;
+import com.microsoft.azure.storage.queue.CloudQueue;
+import com.microsoft.azure.storage.queue.CloudQueueClient;
+import com.microsoft.azure.storage.queue.CloudQueueMessage;
 import com.microsoft.j1939.Analyzer.Blocks.CGBlock;
 import com.microsoft.j1939.Analyzer.Blocks.CNBlock;
 import com.microsoft.j1939.Analyzer.Blocks.DGBlock;
@@ -46,17 +59,18 @@ import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
 
-/**
- * Analyzes a CAN (Controlled Area Network) Log by applying a Schema
- *
- */
-public class App {
+public class Monitor {
+
 	List<String> csvHeaders = new LinkedList<String>();
 
 	Map<String, OutputBuilder> writers = new HashMap<String, OutputBuilder>();
 	final String sep = "_";
-
-	App() throws IOException {
+	
+	public static final String storageConnectionString = "DefaultEndpointsProtocol=https;"
+			+ "AccountName=[ACCOUNT_NAME];" + "AccountKey=[ACCOUNT_KEY];" + "EndpointSuffix=core.windows.net";
+	public String uriConnection = "wasb://[CONTAINER_NAME]@[ACCOUNT_NAME]/[BLOB_NAME]?key=[ACCOUNT_KEY]";
+	
+	Monitor() throws IOException {
 		writers.put("csv-file", new CsvBuilder());
 		writers.put("parquet-file", new ParquetFileBuilder());
 		writers.put("parquet-blob", new ParquetBlobBuilder());
@@ -70,27 +84,120 @@ public class App {
 		        };
 		    }
 		} : null);
+	}
+	
+	Monitor(Namespace ns) throws ParseException, IOException {
+		this();
+		
+		try {
+		    String connection = String.format("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net",
+		    		ns.getString("account"), ns.getString("key"));
+
+		    // Retrieve storage account from connection-string.
+		    CloudStorageAccount storageAccount =
+		       CloudStorageAccount.parse(connection);
+		    
+		    CloudQueueClient queueClient = storageAccount.createCloudQueueClient();
+
+		    CloudQueue queue = queueClient.getQueueReference(ns.getString("queue"));
+		    queue.setShouldEncodeMessage(false);
+		    
+		    queue.createIfNotExists();
+		    // Peek at the next message.
+		    
+		    CloudQueueMessage message = queue.retrieveMessage();
+
+		    // Output the message value.
+		    while (message != null) {
+
+			    JSONObject json = new JSONObject(new String(message.getMessageContentAsByte(), "utf-8"));
+		    
+			    System.out.println(json.toString(4));
+			    
+			    process(ns, json);
+			    
+			    queue.deleteMessage(message);
+			    
+			    message = queue.retrieveMessage();
+			    
+		    }
+		    
+		   
+		} catch (Exception e) {
+		    e.printStackTrace();
+		} finally {
+		}
+		
+	}
+
+	/**
+	 * Get the Message for the ID
+	 * 
+	 * @param network
+	 * @param id
+	 * @return
+	 */
+	private String getName(NetworkDefinition network, long id) {
+		for (Bus bus : network.getBus()) {
+
+			for (Message message : bus.getMessage()) {
+
+				if (message.getId().equals("0x" + BigInteger.valueOf(id).toString(16).toUpperCase())) {
+					return message.getName();
+				}
+
+			}
+
+		}
+
+		return "";
 
 	}
 	
-	App(Namespace ns) throws ParseException, IOException {
-		this();
+	private static CloudBlockBlob getBlobReference(String accountName, String key, String containerName, String blobName) throws URISyntaxException, StorageException, InvalidKeyException {
+		String connectionString = StringUtils.replace(storageConnectionString, "[ACCOUNT_NAME]", accountName);
+		connectionString = StringUtils.replace(connectionString, "[ACCOUNT_KEY]", key);
 		
+		System.out.println("Connection String: '" + connectionString + "'");
+		System.out.println("Container: '" + containerName + "'");
+
+		CloudStorageAccount account = CloudStorageAccount.parse(connectionString);
+
+		CloudBlobClient blobClient  = account.createCloudBlobClient();
+		CloudBlobContainer container = blobClient.getContainerReference(containerName);
+		container.createIfNotExists();
+
+		return container.getBlockBlobReference(blobName);
+
+	}
+	
+	private void process(Namespace ns, JSONObject json) throws IOException, ParseException, InvalidKeyException, URISyntaxException, StorageException {
+	
 		long start = System.currentTimeMillis();
 
 		List<CNBlock> cnBlocks = new LinkedList<CNBlock>();
 
 		csvHeaders.add("TimeStamp");
 		csvHeaders.add("Clock");
-
+		
+		String folder =  json.getString("blob_name").replace(json.getString("file_name"), "");
+		
+		String outputName =  folder  + "canlog.parquet"; 
+		String summaryName =  folder  + "summary.json"; 
+		String containerName = json.getString("container_name"); 
+		String accountName = json.getString("account_name"); 
+		String blobName = json.getString("blob_name"); 
+		
+		System.out.println("Folder: " + folder);
+		
 		System.out.println("Parameters: ***");
-		System.out.println("	Cam Log: '" + ns.getString("file") + "'");
+		System.out.println("	Cam Log: '" + json.getString("blob_name") + "'");
 		System.out.println("	Schema: '" + ns.getString("schema") + "'");
 		System.out.println("	Log: '" + ns.getString("log") + "'");
-		System.out.println("	Output: '" + ns.getString("output") + "'");
+		System.out.println("	Output: '" +  outputName + "'");
 		System.out.println("	Format: '" + ns.getString("format") + "'");
 		System.out.println();
-
+		
 		OutputBuilder outputBuilder = writers.get(ns.getString("format"));
 		
 		OutputStream log = ns.getString("log").equals("stdout") ? System.out
@@ -106,8 +213,8 @@ public class App {
 		writeLine(log, "     Date: " + (new Date()).toString());
 		writeLine(log, "     Developed by Microsoft Pty Ltd in Omni");
 		writeLine(log, "");
+
 		writeLine(log, "Messages: ***");
-		
 		for (Bus bus : parser.getNetwork().getBus()) {
 
 			for (Message message : bus.getMessage()) {
@@ -131,17 +238,35 @@ public class App {
 
 		// Setup the CSV Reader
 		
-		outputBuilder.open(ns, csvHeaders);
+		String connectionUrl = uriConnection.replace("[ACCOUNT_NAME]", accountName).
+											 replace("[CONTAINER_NAME]", containerName).
+											 replace("[BLOB_NAME]", outputName).
+											 replace("[ACCOUNT_KEY]", ns.getString("key"));
+		System.out.println("[Open] Connection URL:" + connectionUrl);
+				
+	
+		outputBuilder.open(connectionUrl, csvHeaders);
+		
+		System.out.println("[Opened] Connection URL:" + connectionUrl);
 		
 		List<String> emptyRecord = new LinkedList<String>();
 
 		for (int iSize = 0; iSize < csvHeaders.size(); iSize++) {
 			emptyRecord.add("");
 		}
+		System.out.println("[Opened] Copy Blob");
 
 		// Process the CAN Blocks
 		MDFReader reader = new MDFReader(parser.getNetwork());
-		reader.open(ns.getString("file"));
+		
+		CloudBlockBlob canlogBlob = getBlobReference(accountName, ns.getString("key"), containerName, blobName);
+		
+		File canFile = File.createTempFile("can", "log");
+		
+		canFile.deleteOnExit();
+		
+		canlogBlob.downloadToFile(canFile.getAbsolutePath());
+		reader.open(canFile.getPath());	
 
 		// Process the IDBlock which points to the other Blocks
 		IDBlock idBlock = new IDBlock();
@@ -297,6 +422,17 @@ public class App {
 			writeLine(log, "***");
 			writeLine(log, "");
 
+			json.put("status", "processed");
+			
+			JSONObject completedJSON = complete(json, signalMap, startTime.getValue(), stopTime.getValue(), ((System.currentTimeMillis() - start)));
+
+			System.out.println(completedJSON.toString(4));
+		
+			
+			CloudBlockBlob summaryBlob = getBlobReference(accountName, ns.getString("key"), containerName, summaryName);
+			String jsonDump = completedJSON.toString(4);
+			
+			summaryBlob.uploadFromByteArray(jsonDump.getBytes("UTF-8"), 0, jsonDump.length());
 			// Idea of the message structure
 			for (Entry<Long, Long> entry : idMap.entrySet()) {
 				writeLine(log,
@@ -336,35 +472,46 @@ public class App {
 		System.out.println("");
 		
 		reader.summary(log);
-
+		
 		log.close();
 
 	}
-
+	
 	/**
-	 * Get the Message for the ID
-	 * 
-	 * @param network
-	 * @param id
-	 * @return
+	 * Get a JSON Object
+	 * @throws IOException 
 	 */
-	private String getName(NetworkDefinition network, long id) {
-		for (Bus bus : network.getBus()) {
-
-			for (Message message : bus.getMessage()) {
-
-				if (message.getId().equals("0x" + BigInteger.valueOf(id).toString(16).toUpperCase())) {
-					return message.getName();
-				}
-
+	public JSONObject complete(JSONObject json, Map<String, Map<String, List<Long>>> signalMap, DateTime startTime, DateTime stopTime, long timeTaken) throws IOException {
+		JSONObject summary = new JSONObject();
+		json.append("run-log", summary);
+		
+		summary.put("Start-time", startTime.toString());
+		summary.put("Stop-time", stopTime.toString());
+		
+		summary.put("Time-taken", timeTaken);
+		
+		JSONArray signals = new JSONArray();
+		for (Entry<String, Map<String, List<Long>>> entry : signalMap.entrySet()) {
+			
+			for (Entry<String, List<Long>> value : entry.getValue().entrySet()) {
+				JSONObject signal = new JSONObject();
+				signal.put("signal", value.getKey());
+				signal.put("count", value.getValue().get(0));
+				signal.put("min", value.getValue().get(1));
+				signal.put("max", value.getValue().get(2));
+				signals.put(signal);
 			}
+			
+			
 
 		}
 
-		return "";
-
+		json.put("signals", signals);
+		
+		return json;
+				
 	}
-
+		
 	/**
 	 * The Main procedure
 	 * 
@@ -372,13 +519,15 @@ public class App {
 	 *            the input arguments
 	 * @throws ParseException
 	 */
-	public static void main(String[] args) throws ParseException {
-		ArgumentParser parser = ArgumentParsers.newFor("Monitor").build().defaultHelp(true)
+	public static void main(String[] args) {
+		ArgumentParser parser = ArgumentParsers.newFor("App").build().defaultHelp(true)
 				.description("Processes a CAM J1939 Parser");
 		
 		parser.addArgument("-s", "--schema").help("Specify the schema for the parser to use to use");
 		
-		parser.addArgument("-o", "--output").help("The csv file");
+		parser.addArgument("-a", "--account").help("The account's name");
+		
+		parser.addArgument("-k", "--key").help("The account's key");
 		
 		parser.addArgument("-l", "--log").setConst("stdout")
 		.help("If specified - the print summary goes to a file otherwise 'stdout'").setDefault("stdout");
@@ -386,10 +535,10 @@ public class App {
 		parser.addArgument("-f", "--format").setConst("csv", "parquet")
 		.help("The output format").setDefault("csv");
 
-		parser.addArgument("file").help("CAM file to process");
+		parser.addArgument("queue").help("queue to process");
 
 		try {
-			new App(parser.parseArgs(args));
+			new Monitor(parser.parseArgs(args));
 		} catch (ArgumentParserException e) {
 			parser.handleError(e);
 			System.exit(1);
@@ -400,5 +549,6 @@ public class App {
 		}
 
 	}
-	
+
+
 }

@@ -13,12 +13,18 @@ import net.sourceforge.argparse4j.inf.Namespace;
 public class CsvBuilder implements OutputBuilder {
 	BufferedWriter writer;
 	CSVPrinter csvPrinter;
-	
+
 	@Override
-	public
-	void open(Namespace ns, List<String> headers) throws IOException{
-		
-		writer = new BufferedWriter(new FileWriter(ns.getString("output")));
+	public void open(Namespace ns, List<String> headers) throws IOException {
+
+		open(ns.getString("output"), headers);
+
+	}
+
+	@Override
+	public void open(String path, List<String> headers) throws IOException {
+
+		writer = new BufferedWriter(new FileWriter(path));
 		csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headers.toArray(new String[0])));
 
 	}
