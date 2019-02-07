@@ -424,7 +424,8 @@ public class Monitor {
 
 			json.put("status", "processed");
 			
-			JSONObject completedJSON = complete(json, signalMap, startTime.getValue(), stopTime.getValue(), ((System.currentTimeMillis() - start)));
+			JSONObject completedJSON = complete(json, signalMap, outputName, ns.get("format"), startTime.getValue(), 
+					                                  stopTime.getValue(), ((System.currentTimeMillis() - start)));
 
 			System.out.println(completedJSON.toString(4));
 		
@@ -481,7 +482,7 @@ public class Monitor {
 	 * Get a JSON Object
 	 * @throws IOException 
 	 */
-	public JSONObject complete(JSONObject json, Map<String, Map<String, List<Long>>> signalMap, DateTime startTime, DateTime stopTime, long timeTaken) throws IOException {
+	public JSONObject complete(JSONObject json, Map<String, Map<String, List<Long>>> signalMap, String outputName, String format, DateTime startTime, DateTime stopTime, long timeTaken) throws IOException {
 		JSONObject summary = new JSONObject();
 		json.append("run-log", summary);
 		
@@ -489,20 +490,24 @@ public class Monitor {
 		summary.put("Stop-time", stopTime.toString());
 		
 		summary.put("Time-taken", timeTaken);
+		summary.put("Output", outputName);
+		summary.put("Format", format);
 		
 		JSONArray signals = new JSONArray();
 		for (Entry<String, Map<String, List<Long>>> entry : signalMap.entrySet()) {
-			
+			JSONArray subSignals = new JSONArray();
 			for (Entry<String, List<Long>> value : entry.getValue().entrySet()) {
 				JSONObject signal = new JSONObject();
 				signal.put("signal", value.getKey());
 				signal.put("count", value.getValue().get(0));
 				signal.put("min", value.getValue().get(1));
 				signal.put("max", value.getValue().get(2));
-				signals.put(signal);
+				subSignals.put(signal);
 			}
 			
-			
+			JSONObject subClass = new JSONObject();
+			subClass.put(entry.getKey(), subSignals);
+			signals.put(subClass);
 
 		}
 
