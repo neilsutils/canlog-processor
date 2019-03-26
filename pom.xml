@@ -126,7 +126,7 @@
 						<manifest>
 							<addClasspath>true</addClasspath>
 							<classpathPrefix>lib/</classpathPrefix>
-							<mainClass>com.microsoft.j1939.Analyzer.App</mainClass>
+							<mainClass>com.microsoft.j1939.Analyzer.Monitor</mainClass>
 						</manifest>
 					</archive>
 				</configuration>

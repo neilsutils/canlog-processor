@@ -62,7 +62,8 @@ import net.sourceforge.argparse4j.inf.Namespace;
 public class Monitor {
 
 	List<String> csvHeaders = new LinkedList<String>();
-
+	OutputStream log;
+	
 	Map<String, OutputBuilder> writers = new HashMap<String, OutputBuilder>();
 	final String sep = "_";
 	
@@ -89,6 +90,17 @@ public class Monitor {
 	Monitor(Namespace ns) throws ParseException, IOException {
 		this();
 		
+		log = ns.getString("log").equals("stdout") ? System.out
+				: new FileOutputStream(ns.getString("log"));
+
+		
+		System.out.println("Parameters: ***");
+ 		System.out.println("	Schema: '" + ns.getString("schema") + "'");
+		System.out.println("	Log: '" + ns.getString("log") + "'");
+		System.out.println("	Format: '" + ns.getString("format") + "'");
+		System.out.println("	Queue: '" + ns.getString("queue") + "'");
+		System.out.println();
+			
 		try {
 		    String connection = String.format("DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net",
 		    		ns.getString("account"), ns.getString("key"));
@@ -107,12 +119,19 @@ public class Monitor {
 		    
 		    CloudQueueMessage message = queue.retrieveMessage();
 
+		    if (message == null) {
+		    	System.out.println("*** No messages ***");
+		    	writeLine(log, "*** No messages ***");
+		    }
+		    
 		    // Output the message value.
 		    while (message != null) {
-
 			    JSONObject json = new JSONObject(new String(message.getMessageContentAsByte(), "utf-8"));
-		    
-			    System.out.println(json.toString(4));
+			    
+		    	System.out.println("Found Message");
+
+			    writeLine(log, "Processing: ");
+			    writeLine(log, json.toString(4));
 			    
 			    process(ns, json);
 			    
@@ -189,19 +208,10 @@ public class Monitor {
 		String blobName = json.getString("blob_name"); 
 		
 		System.out.println("Folder: " + folder);
-		
-		System.out.println("Parameters: ***");
-		System.out.println("	Cam Log: '" + json.getString("blob_name") + "'");
-		System.out.println("	Schema: '" + ns.getString("schema") + "'");
-		System.out.println("	Log: '" + ns.getString("log") + "'");
 		System.out.println("	Output: '" +  outputName + "'");
-		System.out.println("	Format: '" + ns.getString("format") + "'");
-		System.out.println();
-		
+
 		OutputBuilder outputBuilder = writers.get(ns.getString("format"));
 		
-		OutputStream log = ns.getString("log").equals("stdout") ? System.out
-				: new FileOutputStream(ns.getString("log"));
 
 		final DbcParser parser = new DbcParser();
 
@@ -525,7 +535,7 @@ public class Monitor {
 	 * @throws ParseException
 	 */
 	public static void main(String[] args) {
-		ArgumentParser parser = ArgumentParsers.newFor("App").build().defaultHelp(true)
+		ArgumentParser parser = ArgumentParsers.newFor("Monitor").build().defaultHelp(true)
 				.description("Processes a CAM J1939 Parser");
 		
 		parser.addArgument("-s", "--schema").help("Specify the schema for the parser to use to use");

@@ -58,7 +58,6 @@ import com.microsoft.j1939.Analyzer.Schema.Value;
  * @author Jan-Niklas Meier <dschanoeh@googlemail.com>
  *
  */
-@SuppressWarnings("restriction")
 public class DbcParser {
 
     private static final String[] KEYWORDS =
