@@ -221,7 +221,7 @@ public class Monitor {
 
 		writeLine(log, "Load Report ***");
 		writeLine(log, "     Date: " + (new Date()).toString());
-		writeLine(log, "     Developed by Microsoft Pty Ltd in Omni");
+		writeLine(log, "     Developed by Microsoft Pty Ltd in Omni Executive");
 		writeLine(log, "");
 
 		writeLine(log, "Messages: ***");
@@ -337,35 +337,46 @@ public class Monitor {
 			final Map<String, Map<String, List<Long>>> signalMap = new TreeMap<String, Map<String, List<Long>>>();
 
 			final MutableObject<DateTime> startTime = new MutableObject<DateTime>(null);
-			final MutableObject<DateTime> stopTime = new MutableObject<DateTime>(new DateTime());
+			final MutableObject<DateTime> stopTime = new MutableObject<DateTime>(null);
+			final MutableObject<Double> startClock = new MutableObject<Double>(null);
+			final MutableObject<Double> stopClock = new MutableObject<Double>(null);
 
 			// Utilizing the Visitor Design Pattern to process each record
 			reader.seek(dgBlock.DataBlock);
+			
 			reader.visitors.add(new MDFVisitor() {
 
 				public boolean onEachRecord(long counter, DateTime dateTime, byte[] data, double clock, long id)
 						throws IOException {
 					Packet packet = new Packet(messageMap, counter, dateTime, clock, id, data);
 
-					if (counter % 1000 == 0 && counter != 0) {
-						float proportion = (float) counter / totalRecords;
-
-						System.out.println((new Date()).toString() + " - Processed: '" + counter + "' - "
-								+ String.format("%.04f", (proportion * 100)) + "%");
-
+					if (startClock.getValue() == null) {
+						startClock.setValue(new Double(clock));
 					}
-
+			
 					if (startTime.getValue() == null) {
 						startTime.setValue(packet.getTimeStamp());
 					}
 
 					stopTime.setValue(packet.getTimeStamp());
+					
+					stopClock.setValue(new Double(clock));
+
+					if (counter % 1000 == 0 && counter != 0) {
+						float proportion = (float) counter / totalRecords;
+
+						System.out.println((new Date()).toString() + " - Processed: '" + counter 
+								+ "' - [" + stopTime.getValue().toString() + "] - " + 
+								String.format("%.04f", (proportion * 100)) + "%");
+
+					}
+
 
 					final List<String> record = new LinkedList<String>(emptyRecord);
 
 					record.set(0, packet.getTimeStamp().toString());
 					record.set(1, Double.toString(clock / 1000));
-
+					
 					if (packet.getMessage() != null) {
 
 						for (Transmission event : packet.getTransmissions()) {
@@ -434,8 +445,10 @@ public class Monitor {
 
 			json.put("status", "processed");
 			
-			JSONObject completedJSON = complete(json, signalMap, outputName, ns.get("format"), startTime.getValue(), 
-					                                  stopTime.getValue(), ((System.currentTimeMillis() - start)));
+			JSONObject completedJSON = complete(json, signalMap, outputName, ns.get("format"), 
+													  startTime.getValue(), 
+					                                  stopTime.getValue(), start, startClock.getValue(), 
+					                                  stopClock.getValue());
 
 			System.out.println(completedJSON.toString(4));
 		
@@ -484,7 +497,7 @@ public class Monitor {
 		
 		reader.summary(log);
 		
-		log.close();
+	//	log.close();
 
 	}
 	
@@ -492,14 +505,21 @@ public class Monitor {
 	 * Get a JSON Object
 	 * @throws IOException 
 	 */
-	public JSONObject complete(JSONObject json, Map<String, Map<String, List<Long>>> signalMap, String outputName, String format, DateTime startTime, DateTime stopTime, long timeTaken) throws IOException {
+	public JSONObject complete(JSONObject json, Map<String, Map<String, List<Long>>> signalMap, 
+			String outputName, String format, DateTime startTime, DateTime stopTime, long jobStartTime,
+			double startClock, double stopClock) throws IOException {
 		JSONObject summary = new JSONObject();
 		json.append("run-log", summary);
 		
+		summary.put("job-start-time", jobStartTime);
+		summary.put("job-stop-time",  System.currentTimeMillis());
+
 		summary.put("Start-time", startTime.toString());
 		summary.put("Stop-time", stopTime.toString());
+		summary.put("Start-clock", startClock);
+		summary.put("Stop-clock", stopClock);
 		
-		summary.put("Time-taken", timeTaken);
+		summary.put("job-time-taken", System.currentTimeMillis() - jobStartTime);
 		summary.put("Output", outputName);
 		summary.put("Format", format);
 		
